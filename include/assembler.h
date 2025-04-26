@@ -1,24 +1,34 @@
+
 #ifndef ASSEMBLER_H
 #define ASSEMBLER_H
 
 #include <stdbool.h>
 
-/**
- * Performs the first pass on the given assembly source file.
- * Builds the symbol table, validates labels, and calculates IC/DC.
- *
- * @param filename The name of the source file (.as)
- * @return true if no errors occurred, false otherwise
- */
-bool first_pass(const char *filename);
+#define MAX_SYMBOL_NAME 32
 
-/**
- * Performs the second pass on the given assembly source file.
- * Generates object (.ob), entry (.ent), and external (.ext) files.
- *
- * @param filename The name of the source file (.as)
- * @return true if no errors occurred, false otherwise
- */
+/* Symbol types */
+typedef enum {
+    SYMBOL_CODE,
+    SYMBOL_DATA,
+    SYMBOL_EXTERN,
+    SYMBOL_ENTRY
+} SymbolType;
+
+/* Symbol structure */
+typedef struct Symbol {
+    char name[MAX_SYMBOL_NAME];
+    int address;
+    SymbolType type;
+    struct Symbol *next;
+} Symbol;
+
+/* Global counters */
+extern int IC;
+extern int DC;
+
+/* Main passes */
+bool first_pass(const char *filename);
 bool second_pass(const char *filename);
 
-#endif
+#endif 
+

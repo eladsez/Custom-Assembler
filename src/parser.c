@@ -1,24 +1,23 @@
+
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include "parser.h"
 
-
 static char *trim_whitespace(char *str) {
+    char *end;
     while (isspace(*str)) str++;
     if (*str == '\0') return str;
-    char *end = str + strlen(str) - 1;
+    end = str + strlen(str) - 1;
     while (end > str && isspace(*end)) end--;
     *(end + 1) = '\0';
     return str;
 }
 
-
 static bool is_register(const char *str) {
     return strlen(str) == 2 && str[0] == 'r' && str[1] >= '0' && str[1] <= '7';
 }
-
 
 typedef struct {
     const char *name;
@@ -43,9 +42,10 @@ static InstructionType lookup_instruction(const char *token) {
     return INST_NONE;
 }
 
-
 static Operand parse_operand(const char *str) {
-    Operand op = { .type = OPERAND_NONE };
+    Operand op;
+
+    op.type = OPERAND_NONE;
     strncpy(op.value, str, MAX_LABEL_LENGTH);
     op.value[MAX_LABEL_LENGTH] = '\0';
 
@@ -57,8 +57,7 @@ static Operand parse_operand(const char *str) {
         op.type = OPERAND_REGISTER_DIRECT;
     } else if (isalpha(str[0])) {
         op.type = OPERAND_DIRECT;
-    }
-    else{
+    } else {
         /* error */
     }
     return op;
@@ -66,10 +65,18 @@ static Operand parse_operand(const char *str) {
 
 bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     char line_copy[256];
+    char *line;
+    char *token;
+    char *colon;
+    char *op_str;
+    char *first;
+    char *second;
+
     strncpy(line_copy, line_input, sizeof(line_copy) - 1);
     line_copy[sizeof(line_copy) - 1] = '\0';
 
-    char *line = trim_whitespace(line_copy);
+    line = trim_whitespace(line_copy);
+
     result->line_number = line_number;
     result->instruction = INST_NONE;
     result->operand_count = 0;
@@ -88,17 +95,16 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
         return true;
     }
 
-    char *token = strtok(line, " \t");
+    token = strtok(line, " \t");
     if (!token) return false;
 
-    /* check for label */
-    char *colon = strchr(token, ':');
+    colon = strchr(token, ':');
     if (colon) {
         *colon = '\0';
-        if (strlen(token) > MAX_LABEL_LENGTH){
-            /* error: label is to long */
+        if (strlen(token) > MAX_LABEL_LENGTH) {
+            /* error: label too long */
             return false;
-        } 
+        }
         strcpy(result->label, token);
         token = strtok(NULL, " \t");
         if (!token) {
@@ -107,47 +113,42 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
         }
     }
 
-    /* Directive */
     if (token[0] == '.') {
         result->type = LINE_DIRECTIVE;
-        /* TODO, .data or .string – could parse more here */
+        /* TODO: handle .data, .string specifics if needed */
         return true;
     }
 
-    /* Instruction */
-    InstructionType inst = lookup_instruction(token);
-    if (inst == INST_NONE) {
+    result->instruction = lookup_instruction(token);
+    if (result->instruction == INST_NONE) {
         /* error: invalid instruction */
         result->type = LINE_INVALID;
         return false;
     }
 
     result->type = LINE_COMMAND;
-    result->instruction = inst;
 
-    /* Parse operands (if any) */
-    char *op_str = strtok(NULL, "");
+    op_str = strtok(NULL, "");
     if (!op_str) {
         result->operand_count = 0;
         return true;
     }
 
     op_str = trim_whitespace(op_str);
-    char *first = strtok(op_str, ",");
+    first = strtok(op_str, ",");
     if (first) {
         first = trim_whitespace(first);
         result->operands[0] = parse_operand(first);
         result->operand_count = 1;
 
-        char *second = strtok(NULL, ",");
+        second = strtok(NULL, ",");
         if (second) {
             second = trim_whitespace(second);
             result->operands[1] = parse_operand(second);
             result->operand_count = 2;
 
-            /* Check for extra operands */
             if (strtok(NULL, ",")) {
-                /* error: Invalid because more then two operands*/
+                /* error: more than two operands */
                 result->type = LINE_INVALID;
                 return false;
             }
@@ -156,3 +157,4 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
 
     return true;
 }
+
