@@ -8,7 +8,7 @@ static const char *level_to_str(LogLevel level) {
     switch (level) {
         case LOG_DEBUG:
             return "DBG";
-        case LOG_INFO:
+        case LOG_INF:
             return "INF";
         case LOG_WARN:
             return "WRN";
@@ -92,7 +92,7 @@ void LOG_DBG(const char *fmt, ...) {
 void LOG_INFO(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    log_internal(LOG_INFO, fmt, args);
+    log_internal(LOG_INF, fmt, args);
     va_end(args);
 }
 
