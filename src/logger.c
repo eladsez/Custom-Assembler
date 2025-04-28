@@ -2,8 +2,13 @@
 #include <time.h>
 #include <stdarg.h>
 
+/* Current minimum log level to display */
 static LogLevel current_log_level = LOG_DEBUG;
 
+/*
+ * level_to_str:
+ * Converts a log level enum to a short string label.
+ */
 static const char *level_to_str(LogLevel level) {
     switch (level) {
         case LOG_DEBUG:
@@ -19,10 +24,18 @@ static const char *level_to_str(LogLevel level) {
     }
 }
 
+/*
+ * asm_log_set_level:
+ * Sets the current logging level.
+ */
 void asm_log_set_level(LogLevel level) {
     current_log_level = level;
 }
 
+/*
+ * log_internal:
+ * Generic logger for normal messages with timestamp and level.
+ */
 void log_internal(LogLevel level, const char *fmt, ...) {
     time_t t;
     struct tm *tm_info;
@@ -46,6 +59,10 @@ void log_internal(LogLevel level, const char *fmt, ...) {
     printf("\n");
 }
 
+/*
+ * log_asm_internal:
+ * Special logger for assembler warnings and errors tied to specific file positions.
+ */
 void log_asm_internal(LogLevel level, const char *file, int line, int col, const char *fmt, ...) {
     const char *bold;
     const char *reset;
@@ -81,6 +98,8 @@ void log_asm_internal(LogLevel level, const char *file, int line, int col, const
 
     fprintf(stderr, "\n");
 }
+
+/* Simple wrappers for different log levels */
 
 void LOG_DBG(const char *fmt, ...) {
     va_list args;

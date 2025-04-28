@@ -1,10 +1,13 @@
-
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include "parser.h"
 
+/*
+ * trim_whitespace:
+ * Removes leading and trailing whitespace characters from a string.
+ */
 static char *trim_whitespace(char *str) {
     char *end;
     while (isspace(*str)) str++;
@@ -15,15 +18,21 @@ static char *trim_whitespace(char *str) {
     return str;
 }
 
+/*
+ * is_register:
+ * Checks if a string represents a valid register (r0 to r7).
+ */
 static bool is_register(const char *str) {
     return strlen(str) == 2 && str[0] == 'r' && str[1] >= '0' && str[1] <= '7';
 }
 
+/* Structure mapping instruction names to types */
 typedef struct {
     const char *name;
     InstructionType type;
 } InstructionMap;
 
+/* List of supported instructions */
 static InstructionMap instructions[] = {
     {"mov", INST_MOV}, {"cmp", INST_CMP}, {"add", INST_ADD}, {"sub", INST_SUB}, {"lea", INST_LEA},
     {"clr", INST_CLR}, {"not", INST_NOT}, {"inc", INST_INC}, {"dec", INST_DEC},
@@ -32,6 +41,10 @@ static InstructionMap instructions[] = {
     {"rts", INST_RTS}, {"stop", INST_STOP}
 };
 
+/*
+ * lookup_instruction:
+ * Finds an instruction type by its name.
+ */
 static InstructionType lookup_instruction(const char *token) {
     size_t i;
     for (i = 0; i < sizeof(instructions) / sizeof(instructions[0]); i++) {
@@ -42,6 +55,10 @@ static InstructionType lookup_instruction(const char *token) {
     return INST_NONE;
 }
 
+/*
+ * parse_operand:
+ * Parses a single operand string and determines its addressing type.
+ */
 static Operand parse_operand(const char *str) {
     Operand op;
 
@@ -58,11 +75,57 @@ static Operand parse_operand(const char *str) {
     } else if (isalpha(str[0])) {
         op.type = OPERAND_DIRECT;
     } else {
-        /* error */
+        /* Unknown operand type */
     }
     return op;
 }
 
+/*
+ * is_valid_number:
+ * Validates if a string represents a proper signed or unsigned integer.
+ */
+bool is_valid_number(const char *number)
+{
+    const char *ptr;
+
+    if (number == NULL)
+    {
+        return false;
+    }
+
+    ptr = number;
+
+    /* Skip optional sign */
+    if (*ptr == '+' || *ptr == '-')
+    {
+        ptr++;
+    }
+
+    if (*ptr == '\0')
+    {
+        /* String is just a sign without digits */
+        return false;
+    }
+
+    while (*ptr != '\0')
+    {
+        if (!isdigit((unsigned char)*ptr))
+        {
+            /* NO commas allowed, NO other characters allowed */
+            return false;
+        }
+        ptr++;
+    }
+
+    return true;
+}
+
+
+/*
+ * parse_line:
+ * Parses a full line of assembly code into a ParsedLine structure.
+ * Determines the line type, instruction type, and operands.
+ */
 bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     char line_copy[256];
     char *line;
@@ -77,6 +140,7 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
 
     line = trim_whitespace(line_copy);
 
+    /* Initialize parsed line defaults */
     result->line_number = line_number;
     result->instruction = INST_NONE;
     result->operand_count = 0;
@@ -102,8 +166,18 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     if (colon) {
         *colon = '\0';
         if (strlen(token) > MAX_LABEL_LENGTH) {
-            /* error: label too long */
             return false;
+        }
+        if (!isalpha(token[0])) {
+            return false;
+        }
+        {
+            size_t i;
+            for (i = 0; i < strlen(token); i++) {
+                if (!isalnum(token[i])) {
+                    return false;
+                }
+            }
         }
         strcpy(result->label, token);
         token = strtok(NULL, " \t");
@@ -115,19 +189,85 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
 
     if (token[0] == '.') {
         result->type = LINE_DIRECTIVE;
-        /* TODO: handle .data, .string specifics if needed */
-        return true;
+
+        if (strcmp(token, ".data") == 0) {
+    char *remaining = strtok(NULL, "");
+    char *ptr;
+    char number_buffer[256];
+    int buf_index = 0;
+    bool has_number = false; /* Tracks if any number was found */
+
+    if (!remaining) {
+        return false;
     }
 
+    remaining = trim_whitespace(remaining);
+    if (*remaining == '\0') {
+        return false;
+    }
+
+    ptr = remaining;
+
+    while (1) {
+        if (*ptr == ',' || *ptr == '\0') {
+            if (buf_index == 0) {
+                /* Comma without number, or nothing before end */
+                return false;
+            }
+
+            /* Null-terminate and validate */
+            number_buffer[buf_index] = '\0';
+            if (!is_valid_number(number_buffer)) {
+                return false;
+            }
+
+            buf_index = 0; /* Reset buffer for next number */
+            has_number = true;
+
+            if (*ptr == '\0') {
+                break; /* End of string */
+            }
+
+            /* If comma, move past it */
+            ptr++;
+            /* Skip optional spaces after comma */
+            while (isspace((unsigned char)*ptr)) {
+                ptr++;
+            }
+        }
+        else if (isspace((unsigned char)*ptr)) {
+            /* Skip spaces inside number collection carefully */
+            ptr++;
+        }
+        else {
+            /* Normal character for number */
+            if (buf_index >= 255) {
+                return false; /* Number too long */
+            }
+            number_buffer[buf_index++] = *ptr;
+            ptr++;
+        }
+    }
+
+    /* If we finished without at least one number, error */
+    if (!has_number) {
+        return false;
+    }
+
+    return true;
+}
+
+        return true;
+    }
+    /* Check for instruction */
     result->instruction = lookup_instruction(token);
     if (result->instruction == INST_NONE) {
-        /* error: invalid instruction */
         result->type = LINE_INVALID;
         return false;
     }
 
     result->type = LINE_COMMAND;
-
+  /* Parse operands (if any) */
     op_str = strtok(NULL, "");
     if (!op_str) {
         result->operand_count = 0;
@@ -148,7 +288,6 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
             result->operand_count = 2;
 
             if (strtok(NULL, ",")) {
-                /* error: more than two operands */
                 result->type = LINE_INVALID;
                 return false;
             }

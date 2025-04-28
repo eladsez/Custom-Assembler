@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,14 +7,22 @@
 
 #define MAX_FILENAME_LEN 100
 
+/*
+ * Main program entry point.
+ * Currently demonstrates logging functionality.
+ * (The assembler logic is commented out but ready for future use.)
+ */
 int main(int argc, char *argv[]) {
     /*
     int i;
+
+    /\* Check if at least one file was provided *\/
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <file1> [file2 ...]\n", argv[0]);
         return EXIT_FAILURE;
     }
 
+    /\* Process each input file *\/
     for (i = 1; i < argc; ++i) {
         char filename[MAX_FILENAME_LEN];
 
@@ -25,11 +32,13 @@ int main(int argc, char *argv[]) {
 
         reset_errors();
 
+        /\* First pass: build symbol table, validate structure *\/
         if (!first_pass(filename)) {
             fprintf(stderr, "First pass failed for %s\n", filename);
             continue;
         }
 
+        /\* Second pass: generate output files *\/
         if (!second_pass(filename)) {
             fprintf(stderr, "Second pass failed for %s\n", filename);
             continue;
@@ -39,11 +48,12 @@ int main(int argc, char *argv[]) {
     }
     */
 
+    /* Example debug, info, warning, and error messages */
     LOG_DBG("Booting with revision: 0x%X", 0xFEEDBEEF);
     LOG_INFO("Init OK");
     LOG_WRN("Sensor unstable");
-    LOG_ERR("Unhandled exception");
 
+    /* Example assembly warnings and errors tied to file locations */
     ASM_WRN("src/end.asm", 8, 18, "unused variable 'temp'");
     ASM_ERR("src/start.asm", 55, 12, "null pointer dereference");
 

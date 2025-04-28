@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,16 +7,22 @@
 #include "errors.h"
 #include "logger.h"
 
+/* Instruction and Data Counters */
 int IC = 100;
 int DC = 0;
 
+/* Pointer to the head of the symbol table linked list */
 static Symbol *symbol_table = NULL;
 
+/*
+ * add_symbol:
+ * Adds a new symbol to the symbol table if it does not already exist.
+ */
 void add_symbol(const char *name, int address, SymbolType type) {
     Symbol *existing = symbol_table;
     while (existing) {
         if (strcmp(existing->name, name) == 0) {
-            /* duplicate */
+            /* Duplicate symbol, do not add */
             return;
         }
         existing = existing->next;
@@ -34,6 +39,10 @@ void add_symbol(const char *name, int address, SymbolType type) {
     }
 }
 
+/*
+ * find_symbol:
+ * Searches the symbol table for a given name and returns the symbol if found.
+ */
 Symbol* find_symbol(const char *name) {
     Symbol *curr = symbol_table;
     while (curr) {
@@ -45,6 +54,10 @@ Symbol* find_symbol(const char *name) {
     return NULL;
 }
 
+/*
+ * mark_entry:
+ * Marks an existing symbol as an entry type.
+ */
 void mark_entry(const char *name) {
     Symbol *sym = find_symbol(name);
     if (sym) {
@@ -52,6 +65,11 @@ void mark_entry(const char *name) {
     }
 }
 
+/*
+ * first_pass:
+ * Parses the source file line-by-line, builds the symbol table,
+ * calculates IC and DC values, and logs syntax errors.
+ */
 bool first_pass(const char *filename) {
     FILE *fp;
     char line[256];
@@ -73,6 +91,7 @@ bool first_pass(const char *filename) {
             continue;
         }
 
+        /* Handle labels for commands or data */
         if (parsed.type == LINE_COMMAND && parsed.label[0]) {
             add_symbol(parsed.label, IC, SYMBOL_CODE);
         } else if (parsed.type == LINE_DIRECTIVE && parsed.label[0]) {
@@ -85,6 +104,7 @@ bool first_pass(const char *filename) {
             add_symbol(extern_label, 0, SYMBOL_EXTERN);
         }
 
+        /* Update instruction or data counters */
         if (parsed.type == LINE_COMMAND) {
             IC += 1 + parsed.operand_count;
         } else if (parsed.type == LINE_DIRECTIVE && strstr(line, ".data")) {
@@ -108,7 +128,7 @@ bool first_pass(const char *filename) {
                     len++;
                     start++;
                 }
-                DC += len + 1;
+                DC += len + 1; /* Include null terminator */
             }
         }
     }
@@ -117,6 +137,10 @@ bool first_pass(const char *filename) {
     return !has_errors();
 }
 
+/*
+ * second_pass:
+ * Re-parses the source file, resolves addresses, writes output files (.ob, .ent, .ext).
+ */
 bool second_pass(const char *filename) {
     FILE *fp;
     FILE *ob;
@@ -150,6 +174,8 @@ bool second_pass(const char *filename) {
         if (parsed.type == LINE_COMMAND) {
             int i;
             fprintf(ob, "%04d %s\n", address++, "<binary>");
+
+            /* Write operands if any */
             for (i = 0; i < parsed.operand_count; i++) {
                 Operand *op = &parsed.operands[i];
                 if (op->type == OPERAND_DIRECT || op->type == OPERAND_RELATIVE) {
@@ -183,5 +209,4 @@ bool second_pass(const char *filename) {
 
     return true;
 }
-
 
