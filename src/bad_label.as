@@ -1,1 +1,0 @@
-1INVALID_LABEL: mov r1, r2
