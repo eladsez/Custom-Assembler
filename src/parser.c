@@ -87,6 +87,9 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     strncpy(line_copy, line_input, sizeof(line_copy) - 1);
     line_copy[sizeof(line_copy) - 1] = '\0';
 
+    strncpy(result->original_line, line_input, LINE_LENGTH + 1);
+    result->original_line[LINE_LENGTH + 1] = '\0';
+
     line = trim_whitespace(line_copy);
 
    

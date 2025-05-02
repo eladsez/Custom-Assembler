@@ -12,13 +12,12 @@ int pre_asm_test(int argc, char *argv[]) {
         printf("Usage: %s <input_file1> [input_file2 ...]\n", argv[0]);
         return 1;
     }
+
     int i;
-    
     for (i = 1; i < argc; ++i) {
         char *filename = argv[i];
         printf("Processing file: %s\n", filename);
 
-        /* Phase 1: Macro Expansion */
         MacroTable *table = create_macro_table();
         if (!table) {
             fprintf(stderr, "Failed to allocate macro table.\n");
@@ -34,21 +33,18 @@ int pre_asm_test(int argc, char *argv[]) {
 
         free_macro_table(table);
 
-        /* Phase 2: First Pass */
         printf("Running first pass on: %s\n", expanded_file);
-        bool pass_ok = first_pass(expanded_file);
-        if (!pass_ok) {
+        if (!first_pass(expanded_file)) {
             fprintf(stderr, "First pass failed for %s\n", expanded_file);
             free(expanded_file);
             free_symbol_table();
             continue;
         }
 
-        /* Dump Symbol Table */
         printf("Symbol table after first pass for %s:\n", expanded_file);
         Symbol *sym = symbol_table;
         while (sym) {
-            const char *type_str = 
+            const char *type_str =
                 (sym->type == SYMBOL_CODE) ? "CODE" :
                 (sym->type == SYMBOL_DATA) ? "DATA" :
                 (sym->type == SYMBOL_EXTERN) ? "EXTERN" :
@@ -58,7 +54,16 @@ int pre_asm_test(int argc, char *argv[]) {
             sym = sym->next;
         }
 
-        /* Cleanup for next file */
+        printf("Running second pass on: %s\n", expanded_file);
+        if (!second_pass(expanded_file)) {
+            fprintf(stderr, "Second pass failed for %s\n", expanded_file);
+            free(expanded_file);
+            free_symbol_table();
+            continue;
+        }
+
+        printf("Assembly completed successfully for %s\n", expanded_file);
+
         free(expanded_file);
         free_symbol_table();
         printf("\n");
@@ -66,6 +71,7 @@ int pre_asm_test(int argc, char *argv[]) {
 
     return 0;
 }
+
 
 
 /* Helper function to display pass/fail */

@@ -68,6 +68,7 @@ typedef struct {
     Operand operands[2];               
     int operand_count;
     char err_msg[MAX_MSG];
+    char original_line[LINE_LENGTH + 2];
 } ParsedLine;
 
 InstructionType lookup_instruction(const char *token);

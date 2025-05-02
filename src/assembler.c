@@ -6,9 +6,20 @@
 #include "parser.h"
 #include "logger.h"
 #include "utils.h"
+#include "code_generator.h"
 
 /* Pointer to the head of the symbol table linked list */
 extern Symbol *symbol_table;
+extern MemoryWord *machine_code;
+extern int machine_code_size;
+extern int machine_code_capacity;
+
+int IC = 100;
+int DC = 0;
+
+int *data_values = NULL;
+int data_count = 0;
+int data_capacity = 0;
 
 void add_command(const ParsedLine *pline, int *IC) {
     int words = 1;
@@ -30,68 +41,79 @@ void add_command(const ParsedLine *pline, int *IC) {
     *IC += words;
 }
 
-bool add_data(const char *line, int *DC) {
-    const char *p;
-    char *copy;
-    char *token;
+int add_data_value(int value) {
+    int *temp;
+    if (data_count >= data_capacity) {
+        int new_capacity = (data_capacity == 0) ? 64 : data_capacity * 2;
+        temp = realloc(data_values, new_capacity * sizeof(int));
+        if (!temp) return 0;
+        data_values = temp;
+        data_capacity = new_capacity;
+    }
+
+    data_values[data_count++] = value;
+    return 1;
+}
+
+bool add_data(const ParsedLine *parsed, int *DC) {
+    char *copy = NULL, *token = NULL, *args = NULL, *trimmed = NULL;
+    int value, i;
     char *endptr;
-    int valid = 1;
 
-    p = strstr(line, ".data");
-    if (p != NULL) {
-        p += 5;
-        while (isspace(*p)) p++;
-        if (*p == '\0') return 0;
+    copy = strdup_c90(parsed->original_line);
+    if (!copy) return 0;
 
-        copy = malloc(strlen(p) + 1);
-        if (!copy) return 0;
-        strcpy(copy, p);
+    token = strtok(copy, " \t");  /* label or directive */
+    if (!token) goto fail;
 
-        token = strtok(copy, ",");
-        while (token != NULL) {
-            char *trimmed = trim_whitespace(token);
-            if (*trimmed == '\0') {
-                valid = 0;
-                break;
-            }
+    if (strchr(token, ':')) {
+        token = strtok(NULL, " \t");
+        if (!token) goto fail;
+    }
 
-            strtol(trimmed, &endptr, 10);
-            if (trimmed == endptr) {
-                valid = 0;
-                break;
-            }
+    if (strcmp(token, ".data") == 0) {
+        args = strtok(NULL, "\n");
+        if (!args) goto fail;
 
+        token = strtok(args, ",");
+        while (token) {
+            trimmed = trim_whitespace(token);
+            value = (int)strtol(trimmed, &endptr, 10);
+            if (trimmed == endptr) goto fail;
+
+            if (!add_data_value(value)) goto fail;
             (*DC)++;
             token = strtok(NULL, ",");
         }
 
         free(copy);
-        return valid;
+        return 1;
     }
 
-    p = strstr(line, ".string");
-    if (p != NULL) {
-        p += 7;
-        while (isspace(*p)) p++;
-        if (*p == '\0') return 0;
+    if (strcmp(token, ".string") == 0) {
+        args = strtok(NULL, "\n");
+        if (!args) goto fail;
 
-        copy = malloc(strlen(p) + 1);
-        if (!copy) return 0;
-        strcpy(copy, p);
+        trimmed = trim_whitespace(args);
+        i = (int)strlen(trimmed);
+        if (i < 2 || trimmed[0] != '"' || trimmed[i - 1] != '"') goto fail;
 
-        copy = trim_whitespace(copy);
-        if (copy[0] != '"' || copy[strlen(copy) - 1] != '"') {
-            free(copy);
-            return 0;
+        for (i = 1; trimmed[i] != '"' && trimmed[i] != '\0'; i++) {
+            if (!add_data_value((int)trimmed[i])) goto fail;
+            (*DC)++;
         }
 
-        *DC += (int)(strlen(copy) - 2 + 1);
+        if (!add_data_value(0)) goto fail;
+        (*DC)++;
         free(copy);
         return 1;
     }
 
+fail:
+    if (copy) free(copy);
     return 0;
 }
+
 
 
 bool first_pass(const char *filename) {
@@ -99,8 +121,8 @@ bool first_pass(const char *filename) {
     char line[LINE_LENGTH + 2];
     int line_number = 0;
     bool has_error = false;
-    int IC = 100;
-    int DC = 0;
+    IC = 100;
+    DC = 0;
 
     if (!file) {
         fprintf(stderr, "Error: Cannot open file %s\n", filename);
@@ -157,7 +179,7 @@ bool first_pass(const char *filename) {
                 }
 
                 if (strstr(line, ".data") || strstr(line, ".string")) {
-                    if (!add_data(line, &DC)) {
+                    if (!add_data(&parsed, &DC)) {
                         asm_err(filename, line_number, 0, "Invalid .data or .string syntax.");
                         has_error = true;
                     }
@@ -204,11 +226,121 @@ bool first_pass(const char *filename) {
 }
 
 
-/*
- * second_pass:
- * Re-parses the source file, resolves addresses, writes output files (.ob, .ent, .ext).
- */
 bool second_pass(const char *filename) {
-    return false;
-}
+    FILE *file = fopen(filename, "r");
+    char line[LINE_LENGTH + 2];
+    int line_number = 0;
+    int IC = 100;
+    int original_IC = 100;
+    bool has_error = false;
 
+    if (!file) {
+        fprintf(stderr, "Error: Cannot open file %s\n", filename);
+        return false;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        ParsedLine parsed;
+        int word_count, w, j;
+        unsigned short words[MAX_WORDS_PER_LINE];
+
+        line_number++;
+
+        if (!parse_line(line, line_number, &parsed)) {
+            continue;
+        }
+
+        switch (parsed.type) {
+            case LINE_EMPTY:
+            case LINE_COMMENT:
+                break;
+
+            case LINE_DIRECTIVE:
+                if (strstr(line, ".entry")) {
+                    Symbol *sym = find_symbol(parsed.label);
+                    if (sym) {
+                        sym->type = SYMBOL_ENTRY;
+                    } else {
+                        asm_err(filename, line_number, 0, "Unknown symbol in .entry: '%s'", parsed.label);
+                        has_error = true;
+                    }
+                }
+                break;
+
+            case LINE_COMMAND:
+                word_count = encode_instruction(&parsed, IC, words);
+
+                for (w = 0; w < parsed.operand_count; w++) {
+                    if (parsed.operands[w].type != OPERAND_REGISTER_DIRECT) {
+                        if (encode_operand_word(&parsed.operands[w], IC + word_count, &words[word_count]) < 0) {
+                            asm_err(filename, line_number, 0, "Undefined symbol '%s'", parsed.operands[w].value);
+                            has_error = true;
+                            break;
+                        }
+                        word_count++;
+                    }
+                }
+
+                for (j = 0; j < word_count; j++) {
+                    if (!add_machine_word(IC + j, words[j])) {
+                        fprintf(stderr, "Memory allocation failed while writing machine code\n");
+                        fclose(file);
+                        return false;
+                    }
+                }
+
+                IC += word_count;
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    fclose(file);
+
+    {
+        int data_start = IC;
+        int i;
+
+        for (i = 0; i < data_count; i++) {
+            if (!add_machine_word(data_start + i, (unsigned short)(data_values[i] & 0x3FFF))) {
+                fprintf(stderr, "Memory allocation failed while writing data words\n");
+                return false;
+            }
+        }
+    }
+
+    {
+        char ob_name[FILENAME_MAX];
+        FILE *ob_file;
+        int i;
+
+        snprintf(ob_name, sizeof(ob_name), "%s.ob", filename);
+        ob_file = fopen(ob_name, "w");
+        if (!ob_file) {
+            fprintf(stderr, "Error: Cannot write to output file %s\n", ob_name);
+            return false;
+        }
+
+        fprintf(ob_file, "%d %d\n", IC - original_IC, DC);
+
+        for (i = 0; i < machine_code_size; i++) {
+            fprintf(ob_file, "%06d %06x\n", machine_code[i].address, machine_code[i].value & 0x3FFF);
+        }
+
+        fclose(ob_file);
+    }
+
+    free(machine_code);
+    machine_code = NULL;
+    machine_code_size = 0;
+    machine_code_capacity = 0;
+
+    free(data_values);
+    data_values = NULL;
+    data_count = 0;
+    data_capacity = 0;
+
+    return !has_error;
+}

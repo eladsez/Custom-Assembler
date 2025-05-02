@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+
 /*
  * trim_whitespace:
  * Removes leading and trailing whitespace characters from a string.
