@@ -11,7 +11,7 @@ macro ADD_THREE
     inc r3
 macroend
 
-macro stop
+macro TWO
     prn r3
 macroend
 
@@ -32,6 +32,6 @@ jmp END
 HELLO
 
 END:
-    stop 
+    TWO
 
 LABEL:  HELLO

@@ -3,6 +3,7 @@
 #include <ctype.h>  
 #include <stdlib.h>
 #include "directive_handler.h"
+#include "utils.h"
 
 DirectiveType get_directive_type(const char *word) {
     if (word == NULL) {
@@ -20,16 +21,6 @@ DirectiveType get_directive_type(const char *word) {
     }
 
     return DIRECTIVE_NONE;
-}
-
-static char *trim_whitespace(char *str) {
-    char *end;
-    while (isspace((unsigned char)*str)) str++;
-    if (*str == '\0') return str;
-    end = str + strlen(str) - 1;
-    while (end > str && isspace((unsigned char)*end)) end--;
-    *(end + 1) = '\0';
-    return str;
 }
 
 /* Helper to check if a string is a valid signed number */

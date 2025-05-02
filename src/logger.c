@@ -36,11 +36,10 @@ void asm_log_set_level(LogLevel level) {
  * log_internal:
  * Generic logger for normal messages with timestamp and level.
  */
-void log_internal(LogLevel level, const char *fmt, ...) {
+void log_internal(LogLevel level, const char *fmt, va_list args) {
     time_t t;
     struct tm *tm_info;
     char time_buf[9];
-    va_list args;
 
     if (level < current_log_level) {
         return;
@@ -52,9 +51,7 @@ void log_internal(LogLevel level, const char *fmt, ...) {
 
     printf("[%s] %s | ", time_buf, level_to_str(level));
 
-    va_start(args, fmt);
     vprintf(fmt, args);
-    va_end(args);
 
     printf("\n");
 }

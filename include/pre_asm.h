@@ -1,10 +1,9 @@
 #ifndef PRE_ASM_H
 #define PRE_ASM_H
 
-#include <stdio.h>
+#include "assembler.h"
 
 /* Constants */
-#define LINE_LENGTH 256
 #define TEMP_FILE_NAME "temp_pre_asm.am"
 #define INITIAL_TABLE_SIZE 16
 

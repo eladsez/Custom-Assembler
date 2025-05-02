@@ -1,51 +1,63 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include "assembler.h"
 #include "pre_asm.h"
 #include "errors.h"
 #include "logger.h"
 #include "parser.h"
+#include "assembler.h"
+#include <string.h>
+#include <stdlib.h>
 
 #define MAX_FILENAME_LEN 100
 
 
-int pre_asm_test(int argc, char *argv[]){
+int pre_asm_test(int argc, char *argv[]) {
     if (argc < 2) {
         printf("Usage: %s <input_file1> [input_file2 ...]\n", argv[0]);
         return 1;
     }
+
     int i;
     for (i = 1; i < argc; ++i) {
-        const char *filename = argv[i];
+        char *filename = argv[i];
         printf("Processing file: %s\n", filename);
 
-        /* Create a new macro table for each file */
+        /* Phase 1: Macro Expansion */
         MacroTable *table = create_macro_table();
         if (!table) {
             fprintf(stderr, "Failed to allocate macro table.\n");
             return 1;
         }
 
-        /* Run the pre-assembler */
-        FILE *output_file = pre_assemble(filename, table);
-        if (!output_file) {
+        FILE *expanded_file = pre_assemble(filename, table);
+        if (!expanded_file) {
             fprintf(stderr, "Failed to preprocess %s\n", filename);
             free_macro_table(table);
             continue;
         }
 
-        /* Print result to stdout */
-        printf("Preprocessed output for %s:\n", filename);
-        char line[LINE_LENGTH * 10];
-        while (fgets(line, sizeof(line), output_file)) {
-            fputs(line, stdout);
-        }
-        printf("\n");
-
-        fclose(output_file);
+        fclose(expanded_file);
         free_macro_table(table);
+
+        /* Phase 2: Label Collection */
+        LabelMap map;
+        init_label_map(&map);
+        FILE *nolabel_file = collect_labels_and_clean_file("temp_pre_asm.am", &map);
+
+        if (!nolabel_file) {
+            fprintf(stderr, "Failed to collect labels and clean %s\n", filename);
+            free_label_map(&map);
+            continue;
+        }
+
+        printf("Label collection completed. Dumping label map:\n");
+        int j;
+        for (j = 0; j < map.count; j++) {
+            printf("  %-20s -> %d\n", map.entries[j].name, map.entries[j].address);
+        }
+
+        fclose(nolabel_file);
+        free_label_map(&map);
     }
+
     return 0;
 }
 

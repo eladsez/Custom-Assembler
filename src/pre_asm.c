@@ -217,7 +217,7 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 strncpy(current_macro_name, after_macro, i);
                 current_macro_name[i] = '\0';
 
-                if (lookup_instruction(current_macro_name) != OPERAND_NONE){
+                if (INST_NONE != lookup_instruction(current_macro_name)){
                     col = (int)(after_macro - line) + 1;
                     asm_err(source_filename, line_num, col, "Macro name '%s' conflicts with an instruction", current_macro_name);
                     had_error = 1;

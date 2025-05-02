@@ -1,10 +1,9 @@
 #ifndef PARSER_H
 #define PARSER_H
 
-#include <stdbool.h>
+#include "assembler.h"
 
 /* Max label length from doc */
-#define MAX_LABEL_LENGTH 31
 #define OP_PER_INST(ints_type) (ints_type < INST_CLR ? 2 : ints_type < INST_RTS ? 1 : 0)
 
 /* Type of line parsed from source */
@@ -56,20 +55,21 @@ typedef enum {
 /* Structure for a single operand */
 typedef struct {
     OperandType type;
-    char value[MAX_LABEL_LENGTH + 1];
+    char value[LABEL_LENGTH + 1];
 } Operand;
 
 /* Parsed line result */
 typedef struct {
     LineType type;
     int line_number;
-    char label[MAX_LABEL_LENGTH + 1];  
+    char label[LABEL_LENGTH + 1];  
     InstructionType instruction;
     Operand operands[2];               
     int operand_count;
 } ParsedLine;
 
 InstructionType lookup_instruction(const char *token);
+Operand parse_operand(const char *str);
 
 /**
  * Parses a single line of assembly code.

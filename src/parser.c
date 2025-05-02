@@ -3,28 +3,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include "parser.h"
+#include "utils.h"
 
-/*
- * trim_whitespace:
- * Removes leading and trailing whitespace characters from a string.
- */
-static char *trim_whitespace(char *str) {
-    char *end;
-    while (isspace(*str)) str++;
-    if (*str == '\0') return str;
-    end = str + strlen(str) - 1;
-    while (end > str && isspace(*end)) end--;
-    *(end + 1) = '\0';
-    return str;
-}
-
-/*
- * is_register:
- * Checks if a string represents a valid register (r0 to r7).
- */
-static bool is_register(const char *str) {
-    return strlen(str) == 2 && str[0] == 'r' && str[1] >= '0' && str[1] <= '7';
-}
 
 /* Structure mapping instruction names to types */
 typedef struct {
@@ -59,12 +39,12 @@ InstructionType lookup_instruction(const char *token) {
  * parse_operand:
  * Parses a single operand string and determines its addressing type.
  */
-static Operand parse_operand(const char *str) {
+Operand parse_operand(const char *str) {
     Operand op;
 
     op.type = OPERAND_NONE;
-    strncpy(op.value, str, MAX_LABEL_LENGTH);
-    op.value[MAX_LABEL_LENGTH] = '\0';
+    strncpy(op.value, str, LABEL_LENGTH);
+    op.value[LABEL_LENGTH] = '\0';
 
     if (str[0] == '#') {
         op.type = OPERAND_IMMEDIATE;
@@ -125,7 +105,7 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     colon = strchr(token, ':');
     if (colon) {
         *colon = '\0';
-        if (strlen(token) > MAX_LABEL_LENGTH) {
+        if (strlen(token) > LABEL_LENGTH) {
             return false;
         }
         if (!isalpha(token[0])) {
