@@ -9,6 +9,7 @@
 #define START_ADDRESS 100
 #define LINE_LENGTH 80
 #define LABEL_LENGTH 31
+#define MAX_FILENAME_LEN 512
 
 /* Label entry definition */
 typedef struct {

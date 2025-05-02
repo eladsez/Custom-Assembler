@@ -77,9 +77,10 @@ void free_macro_table(MacroTable *table) {
 }
 
 
-FILE *pre_assemble(const char *source_filename, MacroTable *table) {
+char *pre_assemble(const char *source_filename, MacroTable *table) {
     FILE *source_file = fopen(source_filename, "r");
     FILE *temp_file;
+    char *output_path;
     char line[LINE_LENGTH];
     int inside_macro = 0;
     char current_macro_name[LINE_LENGTH];
@@ -95,9 +96,28 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
         return NULL;
     }
 
-    temp_file = fopen(TEMP_FILE_NAME, "w+");
+    /* Allocate .am filename */
+    size_t len = strlen(source_filename);
+    if (len < 3 || strcmp(source_filename + len - 3, ".as") != 0) {
+        log_err("Error: Source file must end with .as\n");
+        fclose(source_file);
+        return NULL;
+    }
+
+    output_path = malloc(len + 1); 
+    if (!output_path) {
+        log_err("Error: Memory allocation failed for filename\n");
+        fclose(source_file);
+        return NULL;
+    }
+
+    snprintf(output_path, len, "%s", source_filename);
+    strcpy(output_path + len - 2, "am");              
+
+    temp_file = fopen(output_path, "w+");
     if (!temp_file) {
-        log_err("Error: Could not create temporary file.\n");
+        log_err("Error: Could not create output file %s\n", output_path);
+        free(output_path);
         fclose(source_file);
         return NULL;
     }
@@ -117,9 +137,7 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
             char *macroend_pos = strstr(line, "macroend");
             if (macroend_pos != NULL) {
                 char before_macroend[LINE_LENGTH];
-                int i;
-                int found_token_before = 0;
-                int col;
+                int i, found_token_before = 0, col;
                 char *after_macroend;
 
                 strncpy(before_macroend, line, macroend_pos - line);
@@ -151,7 +169,7 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 }
 
                 if (!macro_buffer) {
-                    macro_buffer = (char *)malloc(1);
+                    macro_buffer = malloc(1);
                     if (!macro_buffer) exit(1);
                     macro_buffer[0] = '\0';
                 } else {
@@ -169,7 +187,7 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 size_t line_len = strlen(line);
                 if (content_length + line_len + 1 >= buffer_size) {
                     buffer_size = (buffer_size + line_len + 1) * 2;
-                    macro_buffer = (char *)realloc(macro_buffer, buffer_size);
+                    macro_buffer = realloc(macro_buffer, buffer_size);
                     if (!macro_buffer) exit(1);
                 }
                 strcpy(macro_buffer + content_length, line);
@@ -183,11 +201,8 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
             char *macro_pos = strstr(line, "macro");
             if (macro_pos != NULL) {
                 char before_macro[LINE_LENGTH];
-                int found_token_before = 0;
-                int i;
-                int col;
-                char *after_macro;
-                char *check;
+                int found_token_before = 0, i, col;
+                char *after_macro, *check;
 
                 strncpy(before_macro, line, macro_pos - line);
                 before_macro[macro_pos - line] = '\0';
@@ -217,7 +232,7 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 strncpy(current_macro_name, after_macro, i);
                 current_macro_name[i] = '\0';
 
-                if (INST_NONE != lookup_instruction(current_macro_name)){
+                if (INST_NONE != lookup_instruction(current_macro_name)) {
                     col = (int)(after_macro - line) + 1;
                     asm_err(source_filename, line_num, col, "Macro name '%s' conflicts with an instruction", current_macro_name);
                     had_error = 1;
@@ -250,10 +265,9 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
         {
             char output_line[LINE_LENGTH * 10] = "";
             char code_part[LINE_LENGTH];
-            char *semicolon_pos;
+            char *semicolon_pos = strchr(line, ';');
             char *token;
 
-            semicolon_pos = strchr(line, ';');
             if (semicolon_pos) {
                 strncpy(code_part, line, semicolon_pos - line);
                 code_part[semicolon_pos - line] = '\0';
@@ -268,11 +282,9 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 if (macro_content != NULL) {
                     if (macro_content[0] != '\0') {
                         strcat(output_line, macro_content);
-                        if (macro_content[strlen(macro_content) - 1] != '\n') {
+                        if (macro_content[strlen(macro_content) - 1] != '\n')
                             strcat(output_line, " ");
-                        }
                     }
-                    /* Else: macro is empty, remove the token */
                 } else {
                     strcat(output_line, token);
                     strcat(output_line, " ");
@@ -295,10 +307,11 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
     fclose(source_file);
     if (had_error) {
         fclose(temp_file);
-        remove(TEMP_FILE_NAME);
+        remove(output_path);
+        free(output_path);
         return NULL;
     }
 
-    rewind(temp_file);
-    return temp_file;
+    fclose(temp_file);
+    return output_path;
 }

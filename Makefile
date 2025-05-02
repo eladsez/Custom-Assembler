@@ -11,7 +11,7 @@ $(EXEC): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ 
 
 clean:
-	rm -f src/*.o $(EXEC) output/*
+	rm -f src/*.o $(EXEC) output/* examples/*.am examples/*.nolabels
 
 run:
 	./assembler examples/example1.as

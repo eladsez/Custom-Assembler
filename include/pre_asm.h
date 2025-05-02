@@ -28,6 +28,6 @@ MacroTable *create_macro_table(void);
 void insert_macro(MacroTable *table, const char *name, const char *content);
 char *lookup_macro(MacroTable *table, const char *name);
 void free_macro_table(MacroTable *table);
-FILE *pre_assemble(const char *source_filename, MacroTable *table);
+char *pre_assemble(const char *source_filename, MacroTable *table);
 
 #endif /* PRE_ASM_H */
