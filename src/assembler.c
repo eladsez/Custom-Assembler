@@ -315,8 +315,20 @@ bool second_pass(const char *filename) {
         char ob_name[FILENAME_MAX];
         FILE *ob_file;
         int i;
+        char *dot_ext;
 
-        snprintf(ob_name, sizeof(ob_name), "%s.ob", filename);
+        /* Copy filename safely */
+        strncpy(ob_name, filename, sizeof(ob_name) - 1);
+        ob_name[sizeof(ob_name) - 1] = '\0';
+
+        /* Look for ".am" at the end */
+        dot_ext = strstr(ob_name, ".am");
+        if (dot_ext && strlen(dot_ext) == 3) {
+            *dot_ext = '\0';  /* Truncate the ".am" */
+        }
+
+        /* Append ".ob" */
+        strncat(ob_name, ".ob", sizeof(ob_name) - strlen(ob_name) - 1);
         ob_file = fopen(ob_name, "w");
         if (!ob_file) {
             fprintf(stderr, "Error: Cannot write to output file %s\n", ob_name);
