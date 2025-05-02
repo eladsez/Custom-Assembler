@@ -77,7 +77,7 @@ bool first_pass(const char *filename) {
 
     fp = fopen(filename, "r");
     if (!fp) {
-        LOG_ERR("Cannot open file: %s", filename);
+        log_err("Cannot open file: %s", filename);
         return false;
     }
 
@@ -152,7 +152,7 @@ bool second_pass(const char *filename) {
 
     fp = fopen(filename, "r");
     if (!fp) {
-        LOG_ERR("Cannot reopen file: %s", filename);
+        log_err("Cannot reopen file: %s", filename);
         return false;
     }
 

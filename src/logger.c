@@ -17,7 +17,7 @@ static const char *level_to_str(LogLevel level) {
             return "INF";
         case LOG_WARN:
             return "WRN";
-        case LOG_ERROR:
+        case log_errOR:
             return "ERR";
         default:
             return "UNK";
@@ -97,48 +97,49 @@ void log_asm_internal(LogLevel level, const char *file, int line, int col, const
     va_end(args);
 
     fprintf(stderr, "\n");
+    fflush(stderr);
 }
 
 /* Simple wrappers for different log levels */
 
-void LOG_DBG(const char *fmt, ...) {
+void log_dbg(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_internal(LOG_DEBUG, fmt, args);
     va_end(args);
 }
 
-void LOG_INFO(const char *fmt, ...) {
+void log_info(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_internal(LOG_INF, fmt, args);
     va_end(args);
 }
 
-void LOG_WRN(const char *fmt, ...) {
+void log_warn(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_internal(LOG_WARN, fmt, args);
     va_end(args);
 }
 
-void LOG_ERR(const char *fmt, ...) {
+void log_err(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    log_internal(LOG_ERROR, fmt, args);
+    log_internal(log_errOR, fmt, args);
     va_end(args);
 }
 
-void ASM_WRN(const char *file, int line, int col, const char *fmt, ...) {
+void asm_warn(const char *file, int line, int col, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
     log_asm_internal(LOG_WARN, file, line, col, fmt, args);
     va_end(args);
 }
 
-void ASM_ERR(const char *file, int line, int col, const char *fmt, ...) {
+void asm_err(const char *file, int line, int col, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    log_asm_internal(LOG_ERROR, file, line, col, fmt, args);
+    log_asm_internal(log_errOR, file, line, col, fmt, args);
     va_end(args);
 }

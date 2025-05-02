@@ -15,7 +15,6 @@ macro EMPTY_MACRO
 macroend
 
 ; Macro calls below
-
 HELLO
 
 ADD_THREE
@@ -30,6 +29,28 @@ HELLO
 
 END:
     stop 
-LABEL:  HELLO  ADD_THREE
 
+LABEL:  HELLO
 
+; should fail because d is unexpexted
+macro ADD_TWO
+    inc r3
+    inc r1
+macroend d
+
+; should fail because ADD_ONE is unexpeted
+macro g ADD_ONE
+    inc r3
+    inc r1
+macroend
+
+ADD_ONE
+
+; should fail because bbb is unexpeted
+bbb macro ADD
+    inc r3
+macroend
+
+ADD
+
+g

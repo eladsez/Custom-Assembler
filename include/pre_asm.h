@@ -6,25 +6,29 @@
 /* Constants */
 #define LINE_LENGTH 256
 #define TEMP_FILE_NAME "temp_pre_asm.am"
-#define HASH_TABLE_SIZE 100
+#define INITIAL_TABLE_SIZE 16
 
 /* MacroEntry structure */
-typedef struct MacroEntry
-{
+typedef struct MacroEntry {
     char *name;
     char *content;
     struct MacroEntry *next;
 } MacroEntry;
 
-/* External declaration of macro table */
-extern MacroEntry *macro_table[HASH_TABLE_SIZE];
+/* MacroTable structure */
+typedef struct {
+    MacroEntry **buckets;
+    size_t size;
+    size_t count;
+} MacroTable;
 
 /* Function prototypes */
 char *strdup_c90(const char *src);
-unsigned int hash(const char *str);
-void insert_macro(const char *name, const char *content);
-char *lookup_macro(const char *name);
-FILE *pre_assemble(const char *source_filename);
+unsigned int hash(const char *str, size_t table_size);
+MacroTable *create_macro_table(void);
+void insert_macro(MacroTable *table, const char *name, const char *content);
+char *lookup_macro(MacroTable *table, const char *name);
+void free_macro_table(MacroTable *table);
+FILE *pre_assemble(const char *source_filename, MacroTable *table);
 
 #endif /* PRE_ASM_H */
-
