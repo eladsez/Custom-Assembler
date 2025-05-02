@@ -5,16 +5,7 @@
 #include "pre_asm.h"
 #include "logger.h"
 #include "parser.h"
-
-char *strdup_c90(const char *src) {
-    char *copy;
-    size_t len = strlen(src) + 1;
-    copy = (char *)malloc(len);
-    if (copy != NULL) {
-        strcpy(copy, src);
-    }
-    return copy;
-}
+#include "utils.h"
 
 unsigned int hash(const char *str, size_t table_size) {
     unsigned int hash = 0;

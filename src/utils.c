@@ -2,6 +2,7 @@
 #include "utils.h"
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 
 /*
  * trim_whitespace:
@@ -23,4 +24,14 @@ char *trim_whitespace(char *str) {
  */
 bool is_register(const char *str) {
     return strlen(str) == 2 && str[0] == 'r' && str[1] >= '0' && str[1] <= '7';
+}
+
+char *strdup_c90(const char *src) {
+    char *copy;
+    size_t len = strlen(src) + 1;
+    copy = (char *)malloc(len);
+    if (copy != NULL) {
+        strcpy(copy, src);
+    }
+    return copy;
 }

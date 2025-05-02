@@ -5,6 +5,7 @@
 
 /* Max label length from doc */
 #define OP_PER_INST(ints_type) (ints_type < INST_CLR ? 2 : ints_type < INST_RTS ? 1 : 0)
+#define MAX_MSG 512
 
 /* Type of line parsed from source */
 typedef enum {
@@ -66,6 +67,7 @@ typedef struct {
     InstructionType instruction;
     Operand operands[2];               
     int operand_count;
+    char err_msg[MAX_MSG];
 } ParsedLine;
 
 InstructionType lookup_instruction(const char *token);

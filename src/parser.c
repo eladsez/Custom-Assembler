@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdbool.h>
 #include "parser.h"
 #include "utils.h"
 
@@ -74,18 +75,20 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     char *op_str;
     char *first;
     char *second;
+    size_t i;
 
     strncpy(line_copy, line_input, sizeof(line_copy) - 1);
     line_copy[sizeof(line_copy) - 1] = '\0';
 
     line = trim_whitespace(line_copy);
 
-    /* Initialize parsed line defaults */
+   
     result->line_number = line_number;
     result->instruction = INST_NONE;
     result->operand_count = 0;
     result->label[0] = '\0';
     result->type = LINE_INVALID;
+    result->err_msg[0] = '\0';
     result->operands[0].type = OPERAND_NONE;
     result->operands[1].type = OPERAND_NONE;
 
@@ -100,23 +103,22 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     }
 
     token = strtok(line, " \t");
-    if (!token) return false;
+    if (!token) {
+        snprintf(result->err_msg, MAX_MSG, "Empty token after stripping whitespace.");
+        return false;
+    }
 
     colon = strchr(token, ':');
     if (colon) {
         *colon = '\0';
-        if (strlen(token) > LABEL_LENGTH) {
+        if (strlen(token) > LABEL_LENGTH || !isalpha(token[0])) {
+            snprintf(result->err_msg, MAX_MSG, "Invalid label: '%s'", token);
             return false;
         }
-        if (!isalpha(token[0])) {
-            return false;
-        }
-        {
-            size_t i;
-            for (i = 0; i < strlen(token); i++) {
-                if (!isalnum(token[i])) {
-                    return false;
-                }
+        for (i = 0; i < strlen(token); i++) {
+            if (!isalnum(token[i])) {
+                snprintf(result->err_msg, MAX_MSG, "Invalid character in label: '%c'", token[i]);
+                return false;
             }
         }
         strcpy(result->label, token);
@@ -128,46 +130,81 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     }
 
     if (token[0] == '.') {
-/* TODO insert the handle functions */ 
+        if (strcmp(token, ".data") == 0 || strcmp(token, ".string") == 0) {
+            result->type = LINE_DIRECTIVE;
+            return true;
+        } else if (strcmp(token, ".extern") == 0 || strcmp(token, ".entry") == 0) {
+            result->type = LINE_DIRECTIVE;
 
-       return true;         
-
+            token = strtok(NULL, " \t");
+            if (!token || strlen(token) > LABEL_LENGTH || !isalpha(token[0])) {
+                snprintf(result->err_msg, MAX_MSG, "Invalid or missing label after directive.");
+                result->type = LINE_INVALID;
+                return false;
+            }
+            for (i = 0; i < strlen(token); i++) {
+                if (!isalnum(token[i])) {
+                    snprintf(result->err_msg, MAX_MSG, "Invalid character in directive label: '%c'", token[i]);
+                    result->type = LINE_INVALID;
+                    return false;
+                }
+            }
+            strcpy(result->label, token);
+            return true;
+        } else {
+            snprintf(result->err_msg, MAX_MSG, "Unknown directive '%s'", token);
+            result->type = LINE_INVALID;
+            return false;
+        }
     }
-    /* Check for instruction */
+
     result->instruction = lookup_instruction(token);
     if (result->instruction == INST_NONE) {
+        snprintf(result->err_msg, MAX_MSG, "Unknown instruction '%s'", token);
         result->type = LINE_INVALID;
         return false;
     }
 
     result->type = LINE_COMMAND;
-  /* Parse operands (if any) */
     op_str = strtok(NULL, "");
     if (!op_str) {
-        result->operand_count = 0;
+        if (OP_PER_INST(result->instruction) != 0) {
+            snprintf(result->err_msg, MAX_MSG, "Missing operand(s) for instruction '%s'", token);
+            result->type = LINE_INVALID;
+            return false;
+        }
         return true;
     }
 
     op_str = trim_whitespace(op_str);
     first = strtok(op_str, ",");
-    if (first) {
+
+    if (first && OP_PER_INST(result->instruction) >= 1) {
         first = trim_whitespace(first);
         result->operands[0] = parse_operand(first);
         result->operand_count = 1;
 
         second = strtok(NULL, ",");
-        if (second) {
+        if (second && OP_PER_INST(result->instruction) == 2) {
             second = trim_whitespace(second);
             result->operands[1] = parse_operand(second);
             result->operand_count = 2;
 
             if (strtok(NULL, ",")) {
+                snprintf(result->err_msg, MAX_MSG, "Too many operands for instruction '%s'", token);
                 result->type = LINE_INVALID;
                 return false;
             }
+        } else if (second && OP_PER_INST(result->instruction) < 2) {
+            snprintf(result->err_msg, MAX_MSG, "Unexpected extra operand for instruction '%s'", token);
+            result->type = LINE_INVALID;
+            return false;
         }
+    } else if (!first && OP_PER_INST(result->instruction) > 0) {
+        snprintf(result->err_msg, MAX_MSG, "Missing required operand for instruction '%s'", token);
+        result->type = LINE_INVALID;
+        return false;
     }
 
     return true;
 }
-

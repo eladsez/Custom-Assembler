@@ -8,7 +8,7 @@ typedef enum {
     LOG_DEBUG,
     LOG_INF,
     LOG_WARN,
-    log_errOR
+    LOG_ERR
 } LogLevel;
 
 void asm_log_set_level(LogLevel level);

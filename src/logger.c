@@ -17,7 +17,7 @@ static const char *level_to_str(LogLevel level) {
             return "INF";
         case LOG_WARN:
             return "WRN";
-        case log_errOR:
+        case LOG_ERR:
             return "ERR";
         default:
             return "UNK";
@@ -110,7 +110,7 @@ void log_warn(const char *fmt, ...) {
 void log_err(const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    log_internal(log_errOR, fmt, args);
+    log_internal(LOG_ERR, fmt, args);
     va_end(args);
 }
 
@@ -124,6 +124,6 @@ void asm_warn(const char *file, int line, int col, const char *fmt, ...) {
 void asm_err(const char *file, int line, int col, const char *fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    log_asm_internal(log_errOR, file, line, col, fmt, args);
+    log_asm_internal(LOG_ERR, file, line, col, fmt, args);
     va_end(args);
 }
