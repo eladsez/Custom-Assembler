@@ -36,32 +36,39 @@ InstructionType lookup_instruction(const char *token) {
     return INST_NONE;
 }
 
-/*
- * parse_operand:
- * Parses a single operand string and determines its addressing type.
- */
 Operand parse_operand(const char *str) {
     Operand op;
+    size_t i;
+    size_t len;
 
     op.type = OPERAND_NONE;
     strncpy(op.value, str, LABEL_LENGTH);
     op.value[LABEL_LENGTH] = '\0';
 
     if (str[0] == '#') {
-        op.type = OPERAND_IMMEDIATE;
-    } else if (str[0] == '%') {
-        op.type = OPERAND_RELATIVE;
+        if (str[1] == '-' || str[1] == '+' || isdigit(str[1])) {
+            op.type = OPERAND_IMMEDIATE;
+        }
+    } else if (str[0] == '&') {
+        if (isalpha(str[1])) {
+            len = strlen(str);
+            for (i = 1; i < len; i++) {
+                if (!isalnum(str[i])) return op;
+            }
+            op.type = OPERAND_RELATIVE;
+        }
     } else if (is_register(str)) {
         op.type = OPERAND_REGISTER_DIRECT;
     } else if (isalpha(str[0])) {
+        len = strlen(str);
+        for (i = 0; i < len; i++) {
+            if (!isalnum(str[i])) return op;
+        }
         op.type = OPERAND_DIRECT;
-    } else {
-        /* Unknown operand type */
     }
+
     return op;
 }
-
-
 /*
  * parse_line:
  * Parses a full line of assembly code into a ParsedLine structure.
@@ -177,31 +184,54 @@ bool parse_line(const char *line_input, int line_number, ParsedLine *result) {
     }
 
     op_str = trim_whitespace(op_str);
-    first = strtok(op_str, ",");
 
-    if (first && OP_PER_INST(result->instruction) >= 1) {
-        first = trim_whitespace(first);
+    if (OP_PER_INST(result->instruction) == 1) {
+        first = trim_whitespace(op_str);
         result->operands[0] = parse_operand(first);
         result->operand_count = 1;
 
-        second = strtok(NULL, ",");
-        if (second && OP_PER_INST(result->instruction) == 2) {
-            second = trim_whitespace(second);
-            result->operands[1] = parse_operand(second);
-            result->operand_count = 2;
-
-            if (strtok(NULL, ",")) {
-                snprintf(result->err_msg, MAX_MSG, "Too many operands for instruction '%s'", token);
-                result->type = LINE_INVALID;
-                return false;
-            }
-        } else if (second && OP_PER_INST(result->instruction) < 2) {
-            snprintf(result->err_msg, MAX_MSG, "Unexpected extra operand for instruction '%s'", token);
+        if (result->operands[0].type == OPERAND_NONE) {
+            snprintf(result->err_msg, MAX_MSG, "Invalid operand: '%s'", first);
             result->type = LINE_INVALID;
             return false;
         }
-    } else if (!first && OP_PER_INST(result->instruction) > 0) {
-        snprintf(result->err_msg, MAX_MSG, "Missing required operand for instruction '%s'", token);
+
+    } else if (OP_PER_INST(result->instruction) == 2) {
+        char *comma = strchr(op_str, ',');
+        if (!comma) {
+            snprintf(result->err_msg, MAX_MSG, "Missing comma between operands.");
+            result->type = LINE_INVALID;
+            return false;
+        }
+
+        *comma = '\0';
+        first = trim_whitespace(op_str);
+        second = trim_whitespace(comma + 1);
+
+        result->operands[0] = parse_operand(first);
+        result->operands[1] = parse_operand(second);
+        result->operand_count = 2;
+
+        if (result->operands[0].type == OPERAND_NONE) {
+            snprintf(result->err_msg, MAX_MSG, "Invalid first operand: '%s'", first);
+            result->type = LINE_INVALID;
+            return false;
+        }
+
+        if (result->operands[1].type == OPERAND_NONE) {
+            snprintf(result->err_msg, MAX_MSG, "Invalid second operand: '%s'", second);
+            result->type = LINE_INVALID;
+            return false;
+        }
+
+        if (strchr(second, ',')) {
+            snprintf(result->err_msg, MAX_MSG, "Too many operands.");
+            result->type = LINE_INVALID;
+            return false;
+        }
+
+    } else {
+        snprintf(result->err_msg, MAX_MSG, "Instruction '%s' does not expect operands.", token);
         result->type = LINE_INVALID;
         return false;
     }
