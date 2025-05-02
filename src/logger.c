@@ -59,27 +59,17 @@ void log_internal(LogLevel level, const char *fmt, ...) {
     printf("\n");
 }
 
-/*
- * log_asm_internal:
- * Special logger for assembler warnings and errors tied to specific file positions.
- */
-void log_asm_internal(LogLevel level, const char *file, int line, int col, const char *fmt, ...) {
-    const char *bold;
-    const char *reset;
-    const char *red_bold;
-    const char *yellow_bold;
+void log_asm_internal(LogLevel level, const char *file, int line, int col, const char *fmt, va_list args) {
+    const char *bold = "\033[1m";
+    const char *reset = "\033[0m";
+    const char *red_bold = "\033[1;31m";
+    const char *yellow_bold = "\033[1;33m";
     const char *label_color;
     const char *label;
-    va_list args;
 
     if (level < current_log_level) {
         return;
     }
-
-    bold = "\033[1m";
-    reset = "\033[0m";
-    red_bold = "\033[1;31m";
-    yellow_bold = "\033[1;33m";
 
     if (level == LOG_WARN) {
         label = "warning";
@@ -92,10 +82,7 @@ void log_asm_internal(LogLevel level, const char *file, int line, int col, const
     fprintf(stderr, "%s%s:%d:%d:%s ", bold, file, line, col, reset);
     fprintf(stderr, "%s%s:%s ", label_color, label, reset);
 
-    va_start(args, fmt);
     vfprintf(stderr, fmt, args);
-    va_end(args);
-
     fprintf(stderr, "\n");
     fflush(stderr);
 }

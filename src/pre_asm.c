@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "pre_asm.h"
 #include "logger.h"
+#include "parser.h"
 
 char *strdup_c90(const char *src) {
     char *copy;
@@ -90,13 +91,13 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
     char *original_line;
 
     if (!source_file) {
-        printf("Error: Could not open source file %s\n", source_filename);
+        log_err("Error: Could not open source file %s\n", source_filename);
         return NULL;
     }
 
     temp_file = fopen(TEMP_FILE_NAME, "w+");
     if (!temp_file) {
-        printf("Error: Could not create temporary file.\n");
+        log_err("Error: Could not create temporary file.\n");
         fclose(source_file);
         return NULL;
     }
@@ -216,6 +217,14 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 strncpy(current_macro_name, after_macro, i);
                 current_macro_name[i] = '\0';
 
+                if (lookup_instruction(current_macro_name) != OPERAND_NONE){
+                    col = (int)(after_macro - line) + 1;
+                    asm_err(source_filename, line_num, col, "Macro name '%s' conflicts with an instruction", current_macro_name);
+                    had_error = 1;
+                    free(original_line);
+                    continue;
+                }
+
                 check = after_macro + i;
                 while (isspace(*check)) check++;
                 if (*check != '\0' && *check != ';') {
@@ -227,7 +236,7 @@ FILE *pre_assemble(const char *source_filename, MacroTable *table) {
                 }
 
                 if (strlen(current_macro_name) > 0) {
-                    printf("Found macro definition: %s\n", current_macro_name);
+                    log_dbg("Found macro definition: %s\n", current_macro_name);
                     inside_macro = 1;
                     macro_buffer = NULL;
                     buffer_size = content_length = 0;

@@ -45,7 +45,7 @@ static InstructionMap instructions[] = {
  * lookup_instruction:
  * Finds an instruction type by its name.
  */
-static InstructionType lookup_instruction(const char *token) {
+InstructionType lookup_instruction(const char *token) {
     size_t i;
     for (i = 0; i < sizeof(instructions) / sizeof(instructions[0]); i++) {
         if (strcmp(token, instructions[i].name) == 0) {

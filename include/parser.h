@@ -69,6 +69,8 @@ typedef struct {
     int operand_count;
 } ParsedLine;
 
+InstructionType lookup_instruction(const char *token);
+
 /**
  * Parses a single line of assembly code.
  *
